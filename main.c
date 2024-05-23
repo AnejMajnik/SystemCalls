@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
+#include <time.h>
+#include <unistd.h>
 
 int main(){
     const char* dirPath = "./SysDir"; //pot do imenika
@@ -48,19 +51,22 @@ int main(){
     const char* fileName = "./PidTimeData.dat";
     mode = 0666;
     int flags = O_CREAT | O_WRONLY;
+    int fd;
 
     // ustvarjanje datoteke PidTimeData.dat
     asm volatile (
         "movq $2, %%rax\n" // load system call number za open (2) v rax
         "movq %1, %%rdi\n" // load prvi argument klica open (path)
         "movq %2, %%rsi\n" // load drugi argument klica open (flags)
-        "movq %2, %%rdx\n" // load tretji argument klica open (mode)
+        "movq %3, %%rdx\n" // load tretji argument klica open (mode)
         "syscall\n"
         "movq %%rax, %0\n" // shrani return value
         : "=r" (result)
         : "r" (fileName), "r" ((long)flags), "r" ((long)mode) // input path, flags in mode
         : "rax", "rdi", "rsi", "rdx" // spremenjeni registri
     );
+
+    fd = result;
 
     if (result >= 0) {
         printf("File successfully created with file descriptor %ld\n", result);
@@ -104,7 +110,53 @@ int main(){
 
     printf("PID: %d\n", pid);
 
+    time_t rawtime;
 
+    // pridobi time
+    asm volatile (
+        "movq $201, %%rax\n" // load system call number za time (201)
+        "xor %%rdi, %%rdi\n" // podaj null pointer kot argument
+        "syscall\n"
+        "movq %%rax, %0\n"
+        : "=r" (rawtime)
+        :
+        : "rax", "rdi"
+    );
+
+    struct tm * timeinfo;
+    timeinfo = localtime(&rawtime);
+    char buffer[80];
+    strftime(buffer, 80, "%d.%m.%Y %H:%M", timeinfo);
+
+    // print datum in čas
+    printf("Current time: %s\n", buffer);
+
+    // priprava za pisanje
+    char writeBuffer[160];
+    snprintf(writeBuffer, sizeof(writeBuffer), "PID: %d, Time: %s\n", pid, buffer);
+
+    ssize_t bytes_written;
+
+    // pisanje v datoteko
+    asm volatile (
+        "movq $1, %%rax\n" // load system call number za write (1)
+        "movq %1, %%rdi\n" // load prvi argument klica write (file descriptor)
+        "movq %2, %%rsi\n" // load drugi argument klica open (buffer)
+        "movq %3, %%rdx\n" // load tretji argument klica open (length)
+        "syscall\n"
+        "movq %%rax, %0\n"
+        : "=r" (bytes_written)
+        : "r" ((long)fd), "r" (writeBuffer), "r" ((long)strlen(writeBuffer))
+        : "rax", "rdi", "rsi", "rdx"
+    );
+
+    if (bytes_written >= 0) {
+        printf("Successfully wrote %zd bytes to the file\n", bytes_written);
+    } else {
+        printf("Error writing to file: %s\n", strerror(errno));
+    }
+
+    close(fd); // Close the file descriptor
 
     return 0;
 }
