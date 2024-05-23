@@ -50,6 +50,7 @@ int main(){
     mode = 0666;
     int flags = O_CREAT | O_WRONLY;
 
+    // ustvarjanje datoteke PidTimeData.dat
     asm volatile (
         "movq $2, %%rax\n" // load system call number za open (2) v rax
         "movq %1, %%rdi\n" // load prvi argument klica open (path)
@@ -67,6 +68,27 @@ int main(){
     } else {
         printf("Error creating file: %s\n", strerror(errno));
         return 1; // Exit if file creation fails
+    }
+
+    mode = 0640;
+
+    // spremeni pravice na -rw-r-----
+    asm volatile (
+        "movq $90, %%rax\n" // load system call number za chmod (90)
+        "movq %1, %%rdi\n" // load prvi argument klica chmod (path)
+        "movq %2, %%rsi\n" // load drugi argument klica chmod (mode)
+        "syscall\n"
+        "movq %%rax, %0\n" // shrani return value
+        : "=r" (result)
+        : "r" (fileName), "r" ((long)mode)
+        : "rax", "rdi", "rsi"
+    );
+
+    if (result == 0) {
+        printf("File permissions successfully changed to %o\n", mode);
+    } else {
+        printf("Error changing file permissions: %s\n", strerror(errno));
+        return 1; // Exit if changing permissions fails
     }
 
     return 0;
