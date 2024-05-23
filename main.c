@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <fcntl.h>
 
 int main(){
     const char* dirPath = "./SysDir"; //pot do imenika
@@ -31,7 +32,42 @@ int main(){
     asm volatile (
         "movq $80, %%rax\n" // load system call number za chdir (80) v rax register
         "movq %1, %%rdi\n" // load argument klica chdir (path) v rdi register
+        "syscall\n" // execute system call
+        "movq %%rax, %0\n" // shrani return value
+        : "=r" (result) // shrani output v result
+        : "r" (dirPath) // poda input za path
+        : "rax", "rdi" // spremenjeni registri
     );
+
+    if (result == 0) {
+        printf("Successfully changed working directory to %s\n", dirPath);
+    } else {
+        printf("Error changing directory: %s\n", strerror(errno));
+        return 1; // izhod če klic spodleti
+    }
+
+    const char* fileName = "./PidTimeData.dat";
+    mode = 0666;
+    int flags = O_CREAT | O_WRONLY;
+
+    asm volatile (
+        "movq $2, %%rax\n" // load system call number za open (2) v rax
+        "movq %1, %%rdi\n" // load prvi argument klica open (path)
+        "movq %2, %%rsi\n" // load drugi argument klica open (flags)
+        "movq %2, %%rdx\n" // load tretji argument klica open (mode)
+        "syscall\n"
+        "movq %%rax, %0\n" // shrani return value
+        : "=r" (result)
+        : "r" (fileName), "r" ((long)flags), "r" ((long)mode) // input path, flags in mode
+        : "rax", "rdi", "rsi", "rdx" // spremenjeni registri
+    );
+
+    if (result >= 0) {
+        printf("File successfully created with file descriptor %ld\n", result);
+    } else {
+        printf("Error creating file: %s\n", strerror(errno));
+        return 1; // Exit if file creation fails
+    }
 
     return 0;
 }
