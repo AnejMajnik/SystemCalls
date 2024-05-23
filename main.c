@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
@@ -90,6 +89,22 @@ int main(){
         printf("Error changing file permissions: %s\n", strerror(errno));
         return 1; // Exit if changing permissions fails
     }
+
+    pid_t pid;
+
+    // pridobi PID
+    asm volatile (
+        "movq $39, %%rax\n" // load system call number za getpid (39)
+        "syscall\n"
+        "mov %%eax, %0\n"   // shrani return vrednost (pid) iz eax v pid spremenljivko
+        : "=r" (pid)
+        :
+        : "rax"
+    );
+
+    printf("PID: %d\n", pid);
+
+
 
     return 0;
 }
