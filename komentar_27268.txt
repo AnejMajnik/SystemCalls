@@ -1,0 +1,13 @@
+Razlike med objdump main.c in main.asm:
+--------------------------------------------
+sys_calls_c ima najprej .init sekcijo, ki se začne z _init funkcijo na 08049000, _start pa šele na 080490d0
+sys_calls_asm ima funkcijo _start, ki se začne takoj na začetku (08049000), brez .init sekcije
+
+sys_calls_c ima bolj zapletene funkcije in klice
+sys_calls_asm ima preprostejše klice in ukaze, kar je značilno za assembly
+
+sys_calls_c ima več različnih sekcij, kot so .init, .plt, .text, .fini
+sys_calls_asm ima manj sekcij
+
+sys_calls_c uporabi plt za sistemske klice
+sys_calls_asm uporabi direktno sistemske klice
