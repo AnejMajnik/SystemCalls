@@ -6,12 +6,12 @@ all: build_c run_c build_asm run_asm
 build_c: main.c
 	$(CC) $(CFLAGS) -o sys_calls_c main.c
 
-run_c: sys_calls
+run_c: sys_calls_c
 	./sys_calls_c
 
 build_asm: main.asm
-	nasm -f elf32 -o main.o main.asm
-	ld -m elf_i386 -o sys_calls_asm main.o
+	nasm -f elf32 -g -o main.o main.asm
+	ld -m elf_i386 -g -o sys_calls_asm main.o
 
 run_asm: sys_calls_asm
 	./sys_calls_asm
