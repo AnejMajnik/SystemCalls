@@ -9,8 +9,8 @@ build_c: main.c
 run_c: sys_calls_c
 	./sys_calls_c
 
-build_asm: main.asm
-	nasm -f elf32 -g -o main.o main.asm
+build_asm: main_asm.s
+	nasm -f elf32 -g -o main.o main_asm.s
 	ld -m elf_i386 -g -o sys_calls_asm main.o
 
 run_asm: sys_calls_asm
