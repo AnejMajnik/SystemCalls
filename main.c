@@ -6,46 +6,45 @@
 #include <time.h>
 #include <unistd.h>
 
-int main(){
-    const char* dirPath = "./SysDir"; //pot do imenika
+int main() {
+    const char* dirPath = "./SysDir"; // path to directory
     int mode = 0777;
+    int result;
 
-    long result;
-
-    // ustvarjanje direktorija SysDir
+    // create directory SysDir
     asm volatile (
-        "movq $83, %%rax\n" // load system call number za mkdir (83) v rax register
-        "movq %1, %%rdi\n" // load prvi argument klica mkdir (path) v rdi register
-        "movq %2, %%rsi\n" // load drugi argument klica mkdir (mode) v rsi register
-        "syscall\n" // execute system call
-        "movq %%rax, %0\n" // shrani return value
-        : "=r" (result) // shrani output v result spremenljivko
-        : "r" (dirPath), "r" ((long)mode) // poda input za path in mode
-        : "rax", "rdi", "rsi" // te registre assembly spremeni
+        "movl $39, %%eax\n" // load system call number for mkdir (39) into eax register
+        "movl %1, %%ebx\n" // load first argument of mkdir (path) into ebx register
+        "movl %2, %%ecx\n" // load second argument of mkdir (mode) into ecx register
+        "int $0x80\n" // trigger system call
+        "movl %%eax, %0\n" // save return value
+        : "=r" (result) // save output in result variable
+        : "g" (dirPath), "g" (mode) // provide input for path and mode
+        : "eax", "ebx", "ecx" // these registers are modified by assembly
     );
 
-    if(result == 0){
-        printf("Directory successfully created\n");
-    } else {
+    if (result == -1) {
         printf("Error creating directory: %s\n", strerror(errno));
+    } else {
+        printf("Directory successfully created\n");
     }
 
-    // premik delovnega imenika v SysDir
+    // change working directory to SysDir
     asm volatile (
-        "movq $80, %%rax\n" // load system call number za chdir (80) v rax register
-        "movq %1, %%rdi\n" // load argument klica chdir (path) v rdi register
-        "syscall\n" // execute system call
-        "movq %%rax, %0\n" // shrani return value
-        : "=r" (result) // shrani output v result
-        : "r" (dirPath) // poda input za path
-        : "rax", "rdi" // spremenjeni registri
+        "movl $12, %%eax\n" // load system call number for chdir (12) into eax register
+        "movl %1, %%ebx\n" // load argument of chdir (path) into ebx register
+        "int $0x80\n" // trigger system call
+        "movl %%eax, %0\n" // save return value
+        : "=r" (result) // save output in result variable
+        : "g" (dirPath) // provide input for path
+        : "eax", "ebx" // these registers are modified by assembly
     );
 
-    if (result == 0) {
-        printf("Successfully changed working directory to %s\n", dirPath);
-    } else {
+    if (result == -1) {
         printf("Error changing directory: %s\n", strerror(errno));
-        return 1; // izhod če klic spodleti
+        return 1; // exit if call fails
+    } else {
+        printf("Successfully changed working directory to %s\n", dirPath);
     }
 
     const char* fileName = "./PidTimeData.dat";
@@ -53,74 +52,72 @@ int main(){
     int flags = O_CREAT | O_WRONLY;
     int fd;
 
-    // ustvarjanje datoteke PidTimeData.dat
+    // create file PidTimeData.dat
     asm volatile (
-        "movq $2, %%rax\n" // load system call number za open (2) v rax
-        "movq %1, %%rdi\n" // load prvi argument klica open (path)
-        "movq %2, %%rsi\n" // load drugi argument klica open (flags)
-        "movq %3, %%rdx\n" // load tretji argument klica open (mode)
-        "syscall\n"
-        "movq %%rax, %0\n" // shrani return value
-        : "=r" (result)
-        : "r" (fileName), "r" ((long)flags), "r" ((long)mode) // input path, flags in mode
-        : "rax", "rdi", "rsi", "rdx" // spremenjeni registri
+        "movl $5, %%eax\n" // load system call number for open (5) into eax
+        "movl %1, %%ebx\n" // load first argument of open (path) into ebx
+        "movl %2, %%ecx\n" // load second argument of open (flags) into ecx
+        "movl %3, %%edx\n" // load third argument of open (mode) into edx
+        "int $0x80\n"
+        "movl %%eax, %0\n" // save return value
+        : "=r" (fd)
+        : "g" (fileName), "g" (flags), "g" (mode) // input path, flags and mode
+        : "eax", "ebx", "ecx", "edx" // these registers are modified by assembly
     );
 
-    fd = result;
-
-    if (result >= 0) {
-        printf("File successfully created with file descriptor %ld\n", result);
-    } else {
+    if (fd == -1) {
         printf("Error creating file: %s\n", strerror(errno));
         return 1; // Exit if file creation fails
+    } else {
+        printf("File successfully created with file descriptor %d\n", fd);
     }
 
     mode = 0640;
 
-    // spremeni pravice na -rw-r-----
+    // change file permissions to -rw-r-----
     asm volatile (
-        "movq $90, %%rax\n" // load system call number za chmod (90)
-        "movq %1, %%rdi\n" // load prvi argument klica chmod (path)
-        "movq %2, %%rsi\n" // load drugi argument klica chmod (mode)
-        "syscall\n"
-        "movq %%rax, %0\n" // shrani return value
+        "movl $15, %%eax\n" // load system call number for chmod (15) into eax
+        "movl %1, %%ebx\n" // load first argument of chmod (path) into ebx
+        "movl %2, %%ecx\n" // load second argument of chmod (mode) into ecx
+        "int $0x80\n"
+        "movl %%eax, %0\n" // save return value
         : "=r" (result)
-        : "r" (fileName), "r" ((long)mode)
-        : "rax", "rdi", "rsi"
+        : "g" (fileName), "g" (mode)
+        : "eax", "ebx", "ecx"
     );
 
-    if (result == 0) {
-        printf("File permissions successfully changed to %o\n", mode);
-    } else {
+    if (result == -1) {
         printf("Error changing file permissions: %s\n", strerror(errno));
         return 1; // Exit if changing permissions fails
+    } else {
+        printf("File permissions successfully changed to %o\n", mode);
     }
 
-    pid_t pid;
+    int pid;
 
-    // pridobi PID
+    // get PID
     asm volatile (
-        "movq $39, %%rax\n" // load system call number za getpid (39)
-        "syscall\n"
-        "mov %%eax, %0\n"   // shrani return vrednost (pid) iz eax v pid spremenljivko
+        "movl $20, %%eax\n" // load system call number for getpid (20) into eax
+        "int $0x80\n"
+        "movl %%eax, %0\n"   // save return value (pid) from eax to pid variable
         : "=r" (pid)
         :
-        : "rax"
+        : "eax"
     );
 
     printf("PID: %d\n", pid);
 
     time_t rawtime;
 
-    // pridobi time
+    // get time
     asm volatile (
-        "movq $201, %%rax\n" // load system call number za time (201)
-        "xor %%rdi, %%rdi\n" // podaj null pointer kot argument
-        "syscall\n"
-        "movq %%rax, %0\n"
+        "movl $13, %%eax\n" // load system call number for time (13) into eax
+        "xorl %%ebx, %%ebx\n" // provide null pointer as argument
+        "int $0x80\n"
+        "movl %%eax, %0\n"
         : "=r" (rawtime)
         :
-        : "rax", "rdi"
+        : "eax", "ebx"
     );
 
     struct tm * timeinfo;
@@ -128,32 +125,32 @@ int main(){
     char buffer[80];
     strftime(buffer, 80, "%d.%m.%Y %H:%M", timeinfo);
 
-    // print datum in čas
+    // print date and time
     printf("Current time: %s\n", buffer);
 
-    // priprava za pisanje
+    // prepare for writing
     char writeBuffer[160];
     snprintf(writeBuffer, sizeof(writeBuffer), "PID: %d, Time: %s\n", pid, buffer);
 
     ssize_t bytes_written;
 
-    // pisanje v datoteko
+    // write to file
     asm volatile (
-        "movq $1, %%rax\n" // load system call number za write (1)
-        "movq %1, %%rdi\n" // load prvi argument klica write (file descriptor)
-        "movq %2, %%rsi\n" // load drugi argument klica open (buffer)
-        "movq %3, %%rdx\n" // load tretji argument klica open (length)
-        "syscall\n"
-        "movq %%rax, %0\n"
+        "movl $4, %%eax\n" // load system call number for write (4) into eax
+        "movl %1, %%ebx\n" // load first argument of write (file descriptor) into ebx
+        "movl %2, %%ecx\n" // load second argument of write (buffer) into ecx
+        "movl %3, %%edx\n" // load third argument of write (length) into edx
+        "int $0x80\n"
+        "movl %%eax, %0\n"
         : "=r" (bytes_written)
-        : "r" ((long)fd), "r" (writeBuffer), "r" ((long)strlen(writeBuffer))
-        : "rax", "rdi", "rsi", "rdx"
+        : "g" (fd), "g" (writeBuffer), "g" ((int)strlen(writeBuffer))
+        : "eax", "ebx", "ecx", "edx"
     );
 
-    if (bytes_written >= 0) {
-        printf("Successfully wrote %zd bytes to the file\n", bytes_written);
-    } else {
+    if (bytes_written == -1) {
         printf("Error writing to file: %s\n", strerror(errno));
+    } else {
+        printf("Successfully wrote %zd bytes to the file\n", bytes_written);
     }
 
     close(fd); // Close the file descriptor

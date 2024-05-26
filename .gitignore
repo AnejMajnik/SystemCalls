@@ -1,3 +1,6 @@
 main
 SysDir
-sys_calls
+sys_calls_c
+.vscode
+main.o
+sys_calls_asm
